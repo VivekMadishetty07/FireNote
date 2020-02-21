@@ -52,6 +52,15 @@ public class NavigationAdapter extends RecyclerView.Adapter<com.example.firenote
                 }
             }
 
+            try
+            {
+                holder.txt_datenav.setText(user.get(position).getDatedata());
+            }
+            catch (Exception e)
+            {
+
+            }
+
          //   holder.txt_datenav.setText(user.get(position).getDatedata());
 
                         if(position == positioncolor)

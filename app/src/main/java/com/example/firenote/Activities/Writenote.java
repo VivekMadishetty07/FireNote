@@ -2,7 +2,6 @@ package com.example.firenote.Activities;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.cardview.widget.CardView;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -35,13 +34,13 @@ import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
 import android.util.Log;
 import android.view.MotionEvent;
+import android.view.ScaleGestureDetector;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.Chronometer;
-import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -58,14 +57,11 @@ import com.example.firenote.utils.ImagePicker;
 import com.gauravk.bubblenavigation.BubbleNavigationLinearView;
 import com.gauravk.bubblenavigation.BubbleToggleView;
 import com.gauravk.bubblenavigation.listener.BubbleNavigationChangeListener;
-import com.google.common.net.MediaType;
-import com.squareup.okhttp.RequestBody;
 
 import java.io.File;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
@@ -98,16 +94,17 @@ public class Writenote extends BaseActivity implements View.OnClickListener, Rec
     UserData userData;
     private AppDatabase mDb;
     LocationManager locationManager;
-    private Location location ,location2;
-    public double latitude=0;
-    public double longitude=0;
+    private Location location, location2;
+    public double latitude = 0;
+    public double longitude = 0;
     String categorytitle = "";
+    String uinversalimage = "";
 
     // media boolean
     boolean audiodata = false;
     boolean imagedata = false;
     boolean updatedata = false;
-
+    boolean hidekeyboard = false;
 
     int record = 0;
     int navigation = 0;
@@ -191,6 +188,9 @@ public class Writenote extends BaseActivity implements View.OnClickListener, Rec
     @BindView(R.id.mic_layout)
     LinearLayout mic_layout;
 
+    @BindView(R.id.ll_keyshow)
+    LinearLayout ll_keyshow;
+
     @BindView(R.id.mic_cross)
     ImageView mic_cross;
 
@@ -213,26 +213,25 @@ public class Writenote extends BaseActivity implements View.OnClickListener, Rec
         ButterKnife.bind(this);
 
         categorytitle = getIntent().getStringExtra("category");
-        catposition = getIntent().getIntExtra("categoryposition",0);
+        catposition = getIntent().getIntExtra("categoryposition", 0);
         userData = new UserData();
 
         Bundle data = getIntent().getExtras();
         userData = (UserData) data.getParcelable("notedata");
 
-        if(!(userData == null || userData.getTitle().isEmpty() || userData.getTitle().equals("")))
-        {
+        if (!(userData == null || userData.getTitle().isEmpty() || userData.getTitle().equals(""))) {
             edt_title.setText(userData.getTitle());
             edt_subject.setText(userData.getSubtitle());
             categorytitle = userData.getCategory();
-          //Toast.makeText(Writenote.this, ""+userData.getTitle(), Toast.LENGTH_LONG).show();
+            uinversalimage = "" + userData.getImagedata();
+            //Toast.makeText(Writenote.this, ""+userData.getTitle(), Toast.LENGTH_LONG).show();
 
-            if(!(userData.getImagedata().isEmpty() || userData.getImagedata() == ""))
-            {
+            if (!(userData.getImagedata().isEmpty() || userData.getImagedata() == "")) {
                 img_card.setVisibility(View.VISIBLE);
 
-                File imgFile = new  File(""+userData.getImagedata());
+                File imgFile = new File("" + userData.getImagedata());
 
-                if(imgFile.exists()){
+                if (imgFile.exists()) {
 
                     Bitmap myBitmap = BitmapFactory.decodeFile(imgFile.getAbsolutePath());
                     img_note.setImageBitmap(myBitmap);
@@ -240,20 +239,15 @@ public class Writenote extends BaseActivity implements View.OnClickListener, Rec
                 }
             }
 
-            if(!(userData.getAudiodata().isEmpty() || userData.getAudiodata() == ""))
-            {
+            if (!(userData.getAudiodata().isEmpty() || userData.getAudiodata() == "")) {
                 music_card.setVisibility(View.VISIBLE);
                 AudioSavePathInDevice = userData.getAudiodata();
                 txt_upload_audio_ha.setText("User.mp3");
             }
 
-            txt_date.setText(""+userData.getDatedata());
+            txt_date.setText("" + userData.getDatedata());
             updatedata = true;
-        }
-
-        else
-
-        {
+        } else {
             updatedata = false;
             userData = new UserData();
             getcurrentdate();
@@ -266,6 +260,8 @@ public class Writenote extends BaseActivity implements View.OnClickListener, Rec
         mic_cross.setOnClickListener(this);
         but_save_rec.setOnClickListener(this);
         but_cancel_rec.setOnClickListener(this);
+        img_card.setOnClickListener(this);
+        ll_keyshow.setOnClickListener(this);
 
         mDb = AppDatabase.getInstance(getApplicationContext());
         imageCompressionLikeWhatsapp = new ImageCompressionLikeWhatsapp(Writenote.this);
@@ -320,7 +316,6 @@ public class Writenote extends BaseActivity implements View.OnClickListener, Rec
                         record = 0;
                         save = 0;
                         micnote = 0;
-
 
                         break;
                 }
@@ -532,6 +527,7 @@ public class Writenote extends BaseActivity implements View.OnClickListener, Rec
                     compressed_real_path = imageCompressionLikeWhatsapp.compressImage(realPth);
                     imagedata = true;
                     img_card.setVisibility(View.VISIBLE);
+                    uinversalimage = "" + compressed_real_path;
 
                 }
             } else if (requestCode == REQUEST_CAMERA) {
@@ -541,6 +537,7 @@ public class Writenote extends BaseActivity implements View.OnClickListener, Rec
                 img_note.setImageURI(imageUri);
                 imagedata = true;
                 img_card.setVisibility(View.VISIBLE);
+                uinversalimage = "" + compressed_real_path;
             }
         } else if (requestCode == REQUEST_PERMISSION_SETTING) {
             if (ActivityCompat.checkSelfPermission(Writenote.this, permissionsRequired[0]) == PackageManager.PERMISSION_GRANTED) {
@@ -696,22 +693,15 @@ public class Writenote extends BaseActivity implements View.OnClickListener, Rec
                 if (location != null) {
                     latitude = location.getLatitude();
                     longitude = location.getLongitude();
-                }
-                else if(location2 != null)
-                {
+                } else if (location2 != null) {
                     latitude = location.getLatitude();
                     longitude = location.getLongitude();
-                }
-                else
-                {
-                    latitude=0;
-                    longitude=0;
+                } else {
+                    latitude = 0;
+                    longitude = 0;
                 }
             }
-        }
-
-
-        catch (Exception e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
@@ -773,8 +763,22 @@ public class Writenote extends BaseActivity implements View.OnClickListener, Rec
 
             case R.id.cross_image:
                 imagedata = false;
-                deletepic ();
+                deletepic();
                 break;
+
+            case R.id.ll_keyshow:
+               if(hidekeyboard)
+               {
+                   hideKeyboard(Writenote.this);
+
+                   hidekeyboard = false;
+               }
+               else
+               {
+                   hidekeyboard = true;
+               }
+                break;
+
 
             case R.id.mic_cross:
                 mic_layout.setVisibility(View.GONE);
@@ -789,6 +793,10 @@ public class Writenote extends BaseActivity implements View.OnClickListener, Rec
             case R.id.but_cancel_rec:
                 mic_layout.setVisibility(View.GONE);
                 speech.stopListening();
+                break;
+
+            case R.id.img_card:
+                watchimagefull();
                 break;
 
             case R.id.back_write:
@@ -809,45 +817,37 @@ public class Writenote extends BaseActivity implements View.OnClickListener, Rec
                 break;
 
             case R.id.cross_music:
-                 showdeleteaudio();
-                 audiodata = false;
-                 break;
+                showdeleteaudio();
+                audiodata = false;
+                break;
 
             case R.id.cross_dialog:
 
                 if (mediaPlayer != null) {
 
-                    try
-                    {
+                    try {
                         mediaPlayer.stop();
                         mediaPlayer.release();
-                    }
-                    catch (Exception e)
-                    {
+                    } catch (Exception e) {
 
                     }
 
                 }
 
-                if(txt_upload_audio_ha.getText().equals("Upload Audio"))
-                {
-                    AudioSavePathInDevice="";
+                if (txt_upload_audio_ha.getText().equals("Upload Audio")) {
+                    AudioSavePathInDevice = "";
                 }
 
-                try
-                {
+                try {
                     mediaRecorder.stop();
                     mediaRecorder.release();
-                }
-                catch (Exception e)
-                {
+                } catch (Exception e) {
 
                 }
 
                 audiodata = false;
                 dialog.dismiss();
                 break;
-
 
 
             case R.id.start_audio:
@@ -864,7 +864,7 @@ public class Writenote extends BaseActivity implements View.OnClickListener, Rec
 
                     } catch (Exception e) {
                         // TODO Auto-generated catch block
-                        Toast.makeText(Writenote.this, "Recording started"+e, Toast.LENGTH_LONG).show();
+                        Toast.makeText(Writenote.this, "Recording started" + e, Toast.LENGTH_LONG).show();
                         e.printStackTrace();
                     }
 
@@ -889,10 +889,8 @@ public class Writenote extends BaseActivity implements View.OnClickListener, Rec
 
                     try {
                         mediaRecorder.stop();
-                    }
-                    catch (Exception e)
-                    {
-                        System.out.println("?????????"+e);
+                    } catch (Exception e) {
+                        System.out.println("?????????" + e);
                     }
 
                     // clear recorder configuration
@@ -901,7 +899,7 @@ public class Writenote extends BaseActivity implements View.OnClickListener, Rec
                     mediaRecorder.release();
                     mediaRecorder = null;
 
-                    System.out.println(">>>>>>>>>"+AudioSavePathInDevice);
+                    System.out.println(">>>>>>>>>" + AudioSavePathInDevice);
                 }
 
 
@@ -940,7 +938,7 @@ public class Writenote extends BaseActivity implements View.OnClickListener, Rec
 
             case R.id.but_reset:
 
-                AudioSavePathInDevice="";
+                AudioSavePathInDevice = "";
                 audiodata = false;
                 ll_audio_recorder.setVisibility(View.VISIBLE);
                 ll_music_player.setVisibility(View.GONE);
@@ -956,13 +954,10 @@ public class Writenote extends BaseActivity implements View.OnClickListener, Rec
 
                 if (mediaPlayer != null) {
 
-                    try
-                    {
+                    try {
                         mediaPlayer.stop();
                         mediaPlayer.release();
-                    }
-                    catch (Exception e)
-                    {
+                    } catch (Exception e) {
 
                     }
                 }
@@ -996,8 +991,7 @@ public class Writenote extends BaseActivity implements View.OnClickListener, Rec
 
             case R.id.stop_music:
 
-                try
-                {
+                try {
                     play_rec.setVisibility(View.VISIBLE);
                     stop_music.setVisibility(View.GONE);
 
@@ -1005,9 +999,7 @@ public class Writenote extends BaseActivity implements View.OnClickListener, Rec
                         mediaPlayer.stop();
                         mediaPlayer.release();
                     }
-                }
-                catch (Exception e)
-                {
+                } catch (Exception e) {
 
                 }
                 break;
@@ -1017,28 +1009,22 @@ public class Writenote extends BaseActivity implements View.OnClickListener, Rec
 
                 if (mediaPlayer != null) {
 
-                    try
-                    {
+                    try {
                         mediaPlayer.stop();
                         mediaPlayer.release();
-                    }
-                    catch (Exception e)
-                    {
+                    } catch (Exception e) {
 
                     }
                 }
 
-                String uploadpiv="Upload Audio";
-                String empty="";
+                String uploadpiv = "Upload Audio";
+                String empty = "";
 
 
-                if(AudioSavePathInDevice == null ||AudioSavePathInDevice.equals(uploadpiv) || AudioSavePathInDevice.equals(empty))
-                {
+                if (AudioSavePathInDevice == null || AudioSavePathInDevice.equals(uploadpiv) || AudioSavePathInDevice.equals(empty)) {
 
                     txt_upload_audio_ha.setText("Upload Audio");
-                }
-                else
-                {
+                } else {
                     music_card.setVisibility(View.VISIBLE);
                     txt_upload_audio_ha.setText("User.mp3");
                     // img_delete_audio_ha.setVisibility(View.VISIBLE);
@@ -1063,8 +1049,8 @@ public class Writenote extends BaseActivity implements View.OnClickListener, Rec
         dialog.setContentView(R.layout.delete_sure);
         dialog.setCancelable(false);
 
-        LinearLayout  ll_no_delete= dialog.findViewById(R.id.ll_no_delete);
-        LinearLayout  ll_yes_delete= dialog.findViewById(R.id.ll_yes_delete);
+        LinearLayout ll_no_delete = dialog.findViewById(R.id.ll_no_delete);
+        LinearLayout ll_yes_delete = dialog.findViewById(R.id.ll_yes_delete);
 
         ll_no_delete.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -1080,7 +1066,7 @@ public class Writenote extends BaseActivity implements View.OnClickListener, Rec
 
                 music_card.setVisibility(View.GONE);
                 txt_upload_audio_ha.setText("Upload Audio");
-                AudioSavePathInDevice="";
+                AudioSavePathInDevice = "";
                 dialog.dismiss();
 
             }
@@ -1090,8 +1076,7 @@ public class Writenote extends BaseActivity implements View.OnClickListener, Rec
     }
 
 
-    public void deletepic ()
-    {
+    public void deletepic() {
         dialog = new Dialog(Writenote.this);
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
         Writenote.this.getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
@@ -1099,10 +1084,10 @@ public class Writenote extends BaseActivity implements View.OnClickListener, Rec
         dialog.setContentView(R.layout.delete_sure);
         dialog.setCancelable(false);
 
-        TextView textView =dialog.findViewById(R.id.txt_delete_option);
+        TextView textView = dialog.findViewById(R.id.txt_delete_option);
 
-        LinearLayout  ll_no_delete= dialog.findViewById(R.id.ll_no_delete);
-        LinearLayout  ll_yes_delete= dialog.findViewById(R.id.ll_yes_delete);
+        LinearLayout ll_no_delete = dialog.findViewById(R.id.ll_no_delete);
+        LinearLayout ll_yes_delete = dialog.findViewById(R.id.ll_yes_delete);
 
         ll_no_delete.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -1118,15 +1103,14 @@ public class Writenote extends BaseActivity implements View.OnClickListener, Rec
 
                 dialog.dismiss();
 
-               img_card.setVisibility(View.GONE);
+                img_card.setVisibility(View.GONE);
             }
         });
 
         dialog.show();
     }
 
-    public void showaudiodialog()
-    {
+    public void showaudiodialog() {
         dialog = new Dialog(Writenote.this);
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
         Writenote.this.getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
@@ -1158,12 +1142,9 @@ public class Writenote extends BaseActivity implements View.OnClickListener, Rec
         stop_music.setOnClickListener(this);
         reset_recorder.setOnClickListener(this);
 
-        if(txt_upload_audio_ha.getText().equals("Upload Audio"))
-        {
+        if (txt_upload_audio_ha.getText().equals("Upload Audio")) {
 
-        }
-        else
-        {
+        } else {
             //setting audio duration time on text view
 
             mediaPlayer = new MediaPlayer();
@@ -1193,7 +1174,6 @@ public class Writenote extends BaseActivity implements View.OnClickListener, Rec
             seekBar.setProgress((int) startTime);
 
 
-
             ll_reset_submit.setVisibility(View.GONE);
             ll_audio_recorder.setVisibility(View.GONE);
             ll_music_player.setVisibility(View.VISIBLE);
@@ -1201,6 +1181,7 @@ public class Writenote extends BaseActivity implements View.OnClickListener, Rec
 
         dialog.show();
     }
+
     public boolean checkPermission() {
         int result = ContextCompat.checkSelfPermission(Writenote.this, WRITE_EXTERNAL_STORAGE);
         int result1 = ContextCompat.checkSelfPermission(Writenote.this, RECORD_AUDIO);
@@ -1226,8 +1207,8 @@ public class Writenote extends BaseActivity implements View.OnClickListener, Rec
     @Override
     public void onBeginningOfSpeech() {
         Log.i(LOG_TAG, "onBeginningOfSpeech");
-       // progressBar.setIndeterminate(false);
-       // progressBar.setMax(10);
+        // progressBar.setIndeterminate(false);
+        // progressBar.setMax(10);
         Toast.makeText(Writenote.this, "onBeginningOfSpeech", Toast.LENGTH_LONG).show();
 
     }
@@ -1242,8 +1223,8 @@ public class Writenote extends BaseActivity implements View.OnClickListener, Rec
     public void onEndOfSpeech() {
         Log.i(LOG_TAG, "onEndOfSpeech");
         Toast.makeText(Writenote.this, "onEndOfSpeech", Toast.LENGTH_LONG).show();
-       // progressBar.setIndeterminate(true);
-       // toggleButton.setChecked(false);
+        // progressBar.setIndeterminate(true);
+        // toggleButton.setChecked(false);
         mic_layout.setVisibility(View.GONE);
     }
 
@@ -1251,8 +1232,8 @@ public class Writenote extends BaseActivity implements View.OnClickListener, Rec
     public void onError(int errorCode) {
         String errorMessage = getErrorText(errorCode);
         Log.d(LOG_TAG, "FAILED " + errorMessage);
-       // txt_subject.setText(errorMessage);
-        Toast.makeText(Writenote.this, ""+errorMessage, Toast.LENGTH_LONG).show();
+        // txt_subject.setText(errorMessage);
+        Toast.makeText(Writenote.this, "" + errorMessage, Toast.LENGTH_LONG).show();
         //toggleButton.setChecked(false);
         mic_layout.setVisibility(View.GONE);
     }
@@ -1285,7 +1266,7 @@ public class Writenote extends BaseActivity implements View.OnClickListener, Rec
         text = edt_subject.getText().toString();
 
         text += matches.get(0);
-        edt_subject.setText(" "+text);
+        edt_subject.setText(" " + text);
     }
 
     @Override
@@ -1332,39 +1313,10 @@ public class Writenote extends BaseActivity implements View.OnClickListener, Rec
     }
 
 
-    public void savenote()
-    {
-        if(edt_title.getText().toString().isEmpty() || edt_subject.getText().toString().isEmpty() || edt_title.getText().toString().equals("") || edt_subject.getText().toString().equals(""))
-        {
-                displayAlert(Writenote.this, "Please input Text and Title");
-        }
-        else
-        {
-
-            if(updatedata)
-            {
-                AppExecutors.getInstance().diskIO().execute(new Runnable() {
-                    @Override
-                    public void run() {
-                        userData.setTitle(edt_title.getText().toString());
-                        userData.setSubtitle(edt_subject.getText().toString());
-                        userData.setAudiodata(AudioSavePathInDevice);
-                        userData.setImagedata(compressed_real_path);
-                        userData.setLat(latitude);
-                        userData.setLng(longitude);
-                        userData.setCategory(""+categorytitle);
-                        userData.setDatedata(""+txt_date.getText());
-                        mDb.noteDao().updatePerson(userData);
-
-                        intent = new Intent(Writenote.this, MainActivity.class);
-                        startActivity(intent);
-
-                        // retrieveTasks();
-                    }
-                });
-            }
-            else
-            {
+    public void savenote() {
+        if (edt_title.getText().toString().isEmpty() || edt_subject.getText().toString().isEmpty() || edt_title.getText().toString().equals("") || edt_subject.getText().toString().equals("")) {
+            displayAlert(Writenote.this, "Please input Text and Title");
+        } else {
 
                 AppExecutors.getInstance().diskIO().execute(new Runnable() {
                     @Override
@@ -1375,19 +1327,24 @@ public class Writenote extends BaseActivity implements View.OnClickListener, Rec
                         userData.setImagedata(compressed_real_path);
                         userData.setLat(latitude);
                         userData.setLng(longitude);
-                        userData.setCategory(""+categorytitle);
-                        userData.setDatedata(""+txt_date.getText());
-                        mDb.noteDao().insertPerson(userData);
+                        userData.setCategory("" + categorytitle);
+                        userData.setDatedata("" + txt_date.getText());
+
+                        if (updatedata) {
+                            mDb.noteDao().updatePerson(userData);
+                        }
+                        else
+                        {
+                            mDb.noteDao().insertPerson(userData);
+                        }
 
                         intent = new Intent(Writenote.this, MainActivity.class);
                         startActivity(intent);
-
                         // retrieveTasks();
                     }
                 });
 
-            }
-            hideKeyboard(Writenote.this);
+            //hideKeyboard(Writenote.this);
         }
     }
 
@@ -1399,37 +1356,65 @@ public class Writenote extends BaseActivity implements View.OnClickListener, Rec
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        String text ="";
-                        for(int i = 0 ; i<user.size(); i++)
-                        {
-                            if(user.get(i).getTitle().equals("") || user.get(i).getTitle().isEmpty())
-                            {
+                        String text = "";
+                        for (int i = 0; i < user.size(); i++) {
+                            if (user.get(i).getTitle().equals("") || user.get(i).getTitle().isEmpty()) {
 
-                            }
-                            else
-                            {
+                            } else {
                                 text += user.get(i).getTitle() + "\n";
                             }
 
                         }
 
-                        displayAlert(Writenote.this, ""+text);
+                        displayAlert(Writenote.this, "" + text);
                     }
                 });
             }
         });
     }
 
-    public void getcurrentdate()
-    {
+    public void getcurrentdate() {
         Date c = Calendar.getInstance().getTime();
         System.out.println("Current time => " + c);
         SimpleDateFormat df = new SimpleDateFormat("dd MMM yyyy");
         String formattedDate = df.format(c);
-        System.out.println(">>>>>>"+formattedDate);
+        System.out.println(">>>>>>" + formattedDate);
 
-        txt_date.setText(""+formattedDate);
+        txt_date.setText("" + formattedDate);
 
+
+    }
+
+    public void watchimagefull() {
+        dialog = new Dialog(Writenote.this);
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        Writenote.this.getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+        dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+        dialog.setContentView(R.layout.show_fullsize_image);
+        dialog.setCancelable(false);
+
+        ImageView myZoomageView = dialog.findViewById(R.id.myZoomageView);
+        ImageView imgcross = dialog.findViewById(R.id.img_full_cross);
+
+        File imgFile = new File(uinversalimage);
+
+        if (imgFile.exists()) {
+
+            Bitmap myBitmap = BitmapFactory.decodeFile(imgFile.getAbsolutePath());
+            myZoomageView.setImageBitmap(myBitmap);
+
+        }
+
+        imgcross.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
+                dialog.dismiss();
+            }
+        });
+
+
+        dialog.show();
 
     }
 }

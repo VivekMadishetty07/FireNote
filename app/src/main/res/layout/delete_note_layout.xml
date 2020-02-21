@@ -33,7 +33,7 @@
                     android:src="@drawable/delete" />
 
                 <TextView
-                    android:id="@+id/text_alert"
+                    android:id="@+id/text_dataalert"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="20dp"
@@ -44,6 +44,20 @@
                     android:text="Are you sure you want to delete the database?"
                     android:textColor="@color/white"
                     android:textSize="13sp" />
+
+                <Button
+                    android:visibility="gone"
+                    android:layout_marginTop="20dp"
+                    android:id="@+id/but_move_data"
+                    android:layout_width="match_parent"
+                    android:text="Move"
+                    android:background="@color/default_inactive"
+                    android:textAllCaps="false"
+                    android:textSize="12dp"
+                    android:fontFamily="@font/light"
+                    android:textColor="@color/white"
+                    android:layout_height="40dp" />
+
 
 
                 <Button

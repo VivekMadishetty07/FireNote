@@ -7,7 +7,7 @@ import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
-import android.app.Activity;
+
 import android.app.Dialog;
 import android.content.Intent;
 import android.graphics.Color;
@@ -20,13 +20,15 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
-import android.view.inputmethod.InputMethodManager;
+import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 import com.example.firenote.Adapter.HomeAdapter;
+import com.example.firenote.Adapter.MoveAdapter;
 import com.example.firenote.Adapter.NavigationAdapter;
 import com.example.firenote.R;
 import com.example.firenote.database.AppDatabase;
@@ -37,6 +39,7 @@ import com.google.android.material.navigation.NavigationView;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import butterknife.BindView;
@@ -61,6 +64,9 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
     EditText categorytext;
     UserData userData;
     private Boolean exit = false;
+    public boolean sortting = false;
+    RecyclerView rec_move;
+    Button but_move;
 
     @BindView(R.id.ll_emptycat)
     LinearLayout ll_emptycat;
@@ -68,8 +74,11 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
     @BindView(R.id.ll_emptynote)
     LinearLayout ll_emptynote;
 
-    @BindView(R.id.info_text)
-    TextView info_text;
+    @BindView(R.id.txt_hometitle)
+    TextView txt_hometitle;
+
+    @BindView(R.id.img_sort)
+    ImageView img_sort;
 
     @BindView(R.id.edt_searchnote)
     EditText edt_searchnote;
@@ -78,11 +87,15 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
     RecyclerView my_recycler_view;
 
     static int cattitle = 0;
+    String cattext = "";
 
-    ArrayList<UserData> notesarray ;
-    ArrayList<UserData> categoryarray ;
-    ArrayList<String> catcompare ;
+    String movetext = "";
+
+    ArrayList<UserData> notesarray;
+    ArrayList<UserData> categoryarray;
+    ArrayList<String> catcompare;
     ItemTouchHelper itemTouchHelper;
+    int defaultposition=-1;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -93,7 +106,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
         userData = new UserData();
         mDb = AppDatabase.getInstance(getApplicationContext());
         getcurrentdate();
-
+        img_sort.setOnClickListener(this);
         edt_searchnote.addTextChangedListener(new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence charSequence, int i, int i1, int i2) {
@@ -113,14 +126,20 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
         });
 
 
+        dialog = new Dialog(MainActivity.this);
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        MainActivity.this.getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+        dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+        dialog.setCancelable(false);
+
+
         notesarray = new ArrayList<UserData>();
         catcompare = new ArrayList<String>();
         categoryarray = new ArrayList<UserData>();
         FabSpeedDial fabSpeedDial = (FabSpeedDial) findViewById(R.id.fab_add);
         fabSpeedDial.setMenuListener(new SimpleMenuListenerAdapter() {
             @Override
-            public boolean onMenuItemSelected(MenuItem menuItem)
-            {
+            public boolean onMenuItemSelected(MenuItem menuItem) {
                 switch (menuItem.getItemId()) {
                     case R.id.faboptions_addnote:
 
@@ -129,20 +148,15 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                         try {
                             String cat = user.get(cattitle).getCategory();
                             move = true;
-                        }
-                        catch (Exception e)
-                        {
+                        } catch (Exception e) {
                             move = false;
                         }
 
-                        if(!move)
-                        {
+                        if (!move) {
                             displayAlert(MainActivity.this, "Please add a category first!");
-                        }
-                        else
-                        {
+                        } else {
                             intent = new Intent(MainActivity.this, Writenote.class);
-                            intent.putExtra("category", user.get(cattitle).getCategory());
+                            intent.putExtra("category", cattext);
                             intent.putExtra("categoryposition", cattitle);
                             startActivity(intent);
                         }
@@ -151,11 +165,11 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
 
                     case R.id.faboptions_deletedata:
                         //Toast.makeText(MainActivity.this, "Clean Database", Toast.LENGTH_LONG).show();
-                        deletedata();
+                      //  deletedata();
                         break;
 
                     case R.id.faboptions_viewdatabase:
-                       // Toast.makeText(MainActivity.this, "View Database", Toast.LENGTH_LONG).show();
+                        // Toast.makeText(MainActivity.this, "View Database", Toast.LENGTH_LONG).show();
                         intent = new Intent(MainActivity.this, ViewData.class);
                         startActivity(intent);
                         break;
@@ -189,77 +203,77 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
             case R.id.but_add_cat:
                 showdialog();
                 break;
+
+            case R.id.img_sort:
+
+                sort();
+
+                break;
         }
     }
 
-    public void showdialog()
-    {
-        dialog = new Dialog(MainActivity.this);
-        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
-        MainActivity.this.getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
-        dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
-        dialog.setContentView(R.layout.addcat_layout);
-        dialog.setCancelable(false);
+    public void showdialog() {
 
-        categorytext =dialog.findViewById(R.id.edt_cat);
-        Button  cancel= dialog.findViewById(R.id.but_cancel);
-        Button  add= dialog.findViewById(R.id.but_add_cat);
+        dialog.setContentView(R.layout.addcat_layout);
+
+
+        categorytext = dialog.findViewById(R.id.edt_cat);
+        Button cancel = dialog.findViewById(R.id.but_cancel);
+        Button add = dialog.findViewById(R.id.but_add_cat);
 
         cancel.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
 
+                MainActivity.this.getWindow().setSoftInputMode(
+                        WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
                 dialog.dismiss();
-                hideKeyboard(MainActivity.this);
             }
         });
 
         add.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-
-                addcategory();
+                MainActivity.this.getWindow().setSoftInputMode(
+                        WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
                 dialog.dismiss();
-                hideKeyboard(MainActivity.this);
+                addcategory();
             }
         });
 
         dialog.show();
     }
 
-    public void deletedata()
-    {
-        dialog = new Dialog(MainActivity.this);
-        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
-        MainActivity.this.getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
-        dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
-        dialog.setContentView(R.layout.delete_data_layout);
-        dialog.setCancelable(true);
+    public void deletedata() {
 
-        Button  deldata= dialog.findViewById(R.id.but_deldata);
+        dialog.setContentView(R.layout.delete_data_layout);
+
+
+        Button deldata = dialog.findViewById(R.id.but_deldatabase);
 
         deldata.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+
+                dialog.dismiss();
 
                 AppExecutors.getInstance().diskIO().execute(new Runnable() {
                     @Override
                     public void run() {
                         user = mDb.noteDao().loadAllPersons();
 
-                        for(int i = 0 ; i<user.size(); i++)
-                        {
+                        for (int i = 0; i < user.size(); i++) {
                             mDb.noteDao().delete(user.get(i));
                         }
 
                         runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
-                                Toast.makeText(MainActivity.this, "total size = "+user.size(), Toast.LENGTH_LONG).show();
+                                Toast.makeText(MainActivity.this, "total size = " + user.size(), Toast.LENGTH_LONG).show();
                             }
                         });
 
-                        System.out.println( "total size = "+user.size());
+                        System.out.println("total size = " + user.size());
                     }
                 });
             }
@@ -268,8 +282,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
         dialog.show();
     }
 
-    private void retrieveTasks()
-    {
+    private void retrieveTasks() {
         AppExecutors.getInstance().diskIO().execute(new Runnable() {
             @Override
             public void run() {
@@ -282,15 +295,19 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                         catcompare = new ArrayList<String>();
                         categoryarray = new ArrayList<UserData>();
 
-                        if(user.size()>0)
-                        {
+                        try {
+                            cattext = user.get(cattitle).getCategory();
+                        } catch (Exception e) {
+                            cattext = "";
+                        }
+
+
+                        if (user.size() > 0) {
                             ll_emptycat.setVisibility(View.GONE);
                             recyclerView.setVisibility(View.VISIBLE);
 
-                            for (int y = 0; y<user.size(); y++)
-                            {
-                                if(!catcompare.contains(user.get(y).getCategory()))
-                                {
+                            for (int y = 0; y < user.size(); y++) {
+                                if (!catcompare.contains(user.get(y).getCategory())) {
                                     categoryarray.add(user.get(y));
                                     catcompare.add(user.get(y).getCategory());
                                 }
@@ -298,30 +315,28 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
 
                             attachswipelistener();
 
-                            info_text.setText(user.get(cattitle).getCategory());
+                            try {
 
-                            for (int i = 0; i<user.size(); i++)
-                            {
-                                if(user.get(cattitle).getCategory().equals(user.get(i).getCategory()))
-                                {
-                                    if(user.get(i).getTitle()==null || user.get(i).getTitle().isEmpty() || user.get(i).getTitle().equals(""))
-                                    {
+                                txt_hometitle.setText(user.get(cattitle).getCategory());
+                            } catch (Exception e) {
+                                txt_hometitle.setText("Firenote");
+                            }
 
-                                    }
-                                    else
-                                    {
+
+                            for (int i = 0; i < user.size(); i++) {
+                                if (user.get(cattitle).getCategory().equals(user.get(i).getCategory())) {
+                                    if (user.get(i).getTitle() == null || user.get(i).getTitle().isEmpty() || user.get(i).getTitle().equals("")) {
+
+                                    } else {
                                         notesarray.add(user.get(i));
                                     }
                                 }
                             }
 
-                            if(notesarray.isEmpty())
-                            {
+                            if (notesarray.isEmpty()) {
                                 ll_emptynote.setVisibility(View.VISIBLE);
                                 my_recycler_view.setVisibility(View.GONE);
-                            }
-                            else
-                            {
+                            } else {
                                 ll_emptynote.setVisibility(View.GONE);
                                 my_recycler_view.setVisibility(View.VISIBLE);
                                 homeAdapter = new HomeAdapter(MainActivity.this, cattitle, notesarray);
@@ -331,9 +346,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                                 my_recycler_view.setItemAnimator(new DefaultItemAnimator());
                                 my_recycler_view.setAdapter(homeAdapter);
                             }
-                        }
-                        else
-                        {
+                        } else {
                             ll_emptycat.setVisibility(View.VISIBLE);
                             recyclerView.setVisibility(View.GONE);
 
@@ -348,37 +361,29 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
         });
     }
 
-    public void addcategory()
-    {
+    public void addcategory() {
         catcompare = new ArrayList<String>();
         categoryarray = new ArrayList<UserData>();
-        for (int y = 0; y<user.size(); y++)
-        {
-            if(!catcompare.contains(user.get(y).getCategory()))
-            {
+        for (int y = 0; y < user.size(); y++) {
+            if (!catcompare.contains(user.get(y).getCategory())) {
                 categoryarray.add(user.get(y));
                 catcompare.add(user.get(y).getCategory());
             }
         }
 
 
-        if(categorytext.getText().toString().isEmpty() || categorytext.getText().toString().equals(""))
-        {
+        if (categorytext.getText().toString().isEmpty() || categorytext.getText().toString().equals("")) {
             displayAlert(MainActivity.this, "Please enter the category first.");
-        }
-        else
-        {
-            if(catcompare.contains(categorytext.getText().toString()))
-            {
+        } else {
+            if (catcompare.contains(categorytext.getText().toString())) {
                 displayAlert(MainActivity.this, "Category already exist !");
-            }
-            else
-            {
+            } else {
                 AppExecutors.getInstance().diskIO().execute(new Runnable() {
                     @Override
                     public void run() {
 
                         userData.setCategory(categorytext.getText().toString());
+                        userData.setDatedata(""+getcurrentdate());
                         mDb.noteDao().insertPerson(userData);
 
                         retrieveTasks();
@@ -388,49 +393,29 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
         }
     }
 
-    public static void hideKeyboard(Activity activity) {
-        InputMethodManager imm = (InputMethodManager) activity.getSystemService(Activity.INPUT_METHOD_SERVICE);
-        //Find the currently focused view, so we can grab the correct window token from it.
-        View view = activity.getCurrentFocus();
-        //If no view currently has focus, create a new one, just so we can grab a window token from it
-        if (view == null) {
-            view = new View(activity);
-        }
-        imm.hideSoftInputFromWindow(view.getWindowToken(), 0);
-    }
-
     public void setreccolor(int position, String s) {
         drawer.closeDrawers();
         notesarray = new ArrayList<UserData>();
         cattitle = position;
+        cattext = s;
         recposition(position);
         navigationAdapter.notifyDataSetChanged();
-        info_text.setText(user.get(cattitle).getCategory());
+        txt_hometitle.setText(cattext);
 
+        for (int i = 0; i < user.size(); i++) {
+            if (user.get(i).getCategory().equals(s)) {
+                if (user.get(i).getTitle() == null || user.get(i).getTitle().isEmpty() || user.get(i).getTitle().equals("")) {
 
-        for (int i = 0; i<user.size(); i++)
-        {
-            if(user.get(i).getCategory().equals(s))
-            {
-                if(user.get(i).getTitle()==null || user.get(i).getTitle().isEmpty() || user.get(i).getTitle().equals(""))
-                {
-
-                }
-                else
-                {
+                } else {
                     notesarray.add(user.get(i));
                 }
             }
         }
 
-
-        if(notesarray.isEmpty())
-        {
+        if (notesarray.isEmpty()) {
             ll_emptynote.setVisibility(View.VISIBLE);
             my_recycler_view.setVisibility(View.GONE);
-        }
-        else
-        {
+        } else {
             ll_emptynote.setVisibility(View.GONE);
             my_recycler_view.setVisibility(View.VISIBLE);
             homeAdapter = new HomeAdapter(MainActivity.this, cattitle, notesarray);
@@ -461,50 +446,50 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
 
     public void deletenote(final UserData userData, final boolean b) {
 
-        dialog = new Dialog(MainActivity.this);
-        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
-        MainActivity.this.getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
-        dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
         dialog.setContentView(R.layout.delete_note_layout);
-        dialog.setCancelable(false);
 
-        Button deldata= dialog.findViewById(R.id.but_deldata);
-        Button cancel= dialog.findViewById(R.id.but_canceldata);
+        Button deldata = dialog.findViewById(R.id.but_deldata);
+        Button movedata = dialog.findViewById(R.id.but_move_data);
+        TextView txtalert = dialog.findViewById(R.id.text_dataalert);
+        Button cancel = dialog.findViewById(R.id.but_canceldata);
+
+        if (b) {
+            txtalert.setText("are you sure you want to delete this category and its notes ?");
+        }
+        else
+        {
+            txtalert.setText("are you sure you want to delete this notes ?");
+        }
 
         deldata.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
 
-                    AppExecutors.getInstance().diskIO().execute(new Runnable() {
-                        @Override
-                        public void run() {
+                AppExecutors.getInstance().diskIO().execute(new Runnable() {
+                    @Override
+                    public void run() {
 
-                            if(b)
-                            {
-                                for(int i = 0; i<user.size(); i++)
-                                {
-                                    String cat = userData.getCategory();
-                                    if(cat.equals(user.get(i).getCategory()))
-                                    {
-                                        mDb.noteDao().delete(user.get(i));
-                                    }
+                        if (b) {
+                            for (int i = 0; i < user.size(); i++) {
+                                String cat = userData.getCategory();
+                                if (cat.equals(user.get(i).getCategory())) {
+                                    mDb.noteDao().delete(user.get(i));
                                 }
                             }
-                            else
-                            {
-                                mDb.noteDao().delete(userData);
-                            }
-
-                            runOnUiThread(new Runnable() {
-                                @Override
-                                public void run() {
-                                    // homeAdapter.notifyDataSetChanged();
-                                    dialog.cancel();
-                                    retrieveTasks();
-                                }
-                            });
+                        } else {
+                            mDb.noteDao().delete(userData);
                         }
-                    });
+
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                // homeAdapter.notifyDataSetChanged();
+                                dialog.cancel();
+                                retrieveTasks();
+                            }
+                        });
+                    }
+                });
             }
         });
 
@@ -516,12 +501,20 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
             }
         });
 
+        movedata.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
+                dialog.cancel();
+                optiondialog(userData);
+            }
+        });
+
         dialog.show();
 
     }
 
-    public void attachswipelistener()
-    {
+    public void attachswipelistener() {
         navigationAdapter = new NavigationAdapter(MainActivity.this, categoryarray, user);
         layoutManager = new LinearLayoutManager(MainActivity.this);
         recyclerView.setLayoutManager(layoutManager);
@@ -553,23 +546,15 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
         itemTouchHelper.attachToRecyclerView(recyclerView);
     }
 
-    public void getcurrentdate()
-    {
-        Date c = Calendar.getInstance().getTime();
-        System.out.println("Current time => " + c);
-        SimpleDateFormat df = new SimpleDateFormat("dd MMM yyyy");
-        String formattedDate = df.format(c);
-        System.out.println(">>>>>>"+formattedDate);
-    }
 
     private void filter(String text) {
         //new array list that will hold the filtered data
         ArrayList<UserData> filterdata = new ArrayList<>();
 
         //looping through existing elements
-        for (int i=0; i<notesarray.size(); i++) {
+        for (int i = 0; i < notesarray.size(); i++) {
             //if the existing elements contains the search input
-            if (notesarray.get(i).getSubtitle().toLowerCase().contains(text.toLowerCase())) {
+            if (notesarray.get(i).getSubtitle().toLowerCase().contains(text.toLowerCase()) || notesarray.get(i).getTitle().toLowerCase().contains(text.toLowerCase())) {
                 //adding the element to filtered list
                 filterdata.add(notesarray.get(i));
             }
@@ -577,11 +562,161 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
 
         //calling a method of the adapter class and passing the filtered list
         homeAdapter = new HomeAdapter(MainActivity.this, cattitle, filterdata);
-      //  homeAdapter.notifyDataSetChanged();
-      //  layoutManager = new LinearLayoutManager(MainActivity.this);
-//        my_recycler_view.setLayoutManager(new GridLayoutManager(MainActivity.this, 2));
-//        my_recycler_view.setHasFixedSize(true);
-//        my_recycler_view.setItemAnimator(new DefaultItemAnimator());
-          my_recycler_view.setAdapter(homeAdapter);
+        my_recycler_view.setAdapter(homeAdapter);
+    }
+
+
+    private void sort() {
+        //new array list that will hold the filtered data
+        ArrayList<UserData> filterdata = new ArrayList<>();
+        ArrayList<String> textarray = new ArrayList<>();
+
+        for (int i = 0; i < notesarray.size(); i++) {
+            //if the existing elements contains the search input
+            textarray.add(notesarray.get(i).getTitle());
+        }
+
+        if(sortting)
+        {
+            Collections.sort(textarray, Collections.reverseOrder());
+            sortting=false;
+        }
+        else
+        {
+            Collections.sort(textarray);
+            sortting=true;
+        }
+
+
+
+        System.out.println("++++++++"+textarray);
+
+        for (int y = 0; y < textarray.size(); y++) {
+
+            for (int z = 0; z < notesarray.size(); z++) {
+
+                if (textarray.get(y)== notesarray.get(z).getTitle()) {
+
+                    filterdata.add(notesarray.get(z));
+                }
+            }
+        }
+
+        //calling a method of the adapter class and passing the filtered list
+        homeAdapter = new HomeAdapter(MainActivity.this, cattitle, filterdata);
+        my_recycler_view.setAdapter(homeAdapter);
+    }
+
+    public String getcurrentdate()
+    {
+        Date c = Calendar.getInstance().getTime();
+        System.out.println("Current time => " + c);
+        SimpleDateFormat df = new SimpleDateFormat("dd MMM yyyy");
+        String formattedDate = df.format(c);
+        System.out.println(">>>>>>"+formattedDate);
+        return formattedDate;
+    }
+
+
+    public void optiondialog(final UserData userData) {
+
+        dialog.setContentView(R.layout.add_optional_layout);
+        rec_move = dialog.findViewById(R.id.rec_move);
+        but_move = dialog.findViewById(R.id.but_move);
+        Button but_cancel_move = dialog.findViewById(R.id.but_cancel_move);
+
+        defaultposition=-1;
+        MoveAdapter moveAdapter = new MoveAdapter(MainActivity.this, categoryarray, user, defaultposition);
+        layoutManager = new LinearLayoutManager(MainActivity.this);
+        rec_move.setLayoutManager(layoutManager);
+        rec_move.setHasFixedSize(true);
+        rec_move.setItemAnimator(new DefaultItemAnimator());
+        rec_move.setAdapter(moveAdapter);
+
+        but_move.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
+                AppExecutors.getInstance().diskIO().execute(new Runnable() {
+                    @Override
+                    public void run() {
+
+                        userData.setCategory(movetext);
+                        mDb.noteDao().updatePerson(userData);
+
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                // homeAdapter.notifyDataSetChanged();
+                                dialog.cancel();
+                              //  retrieveTasks();
+                                setreccolor(cattitle, cattext);
+                            }
+                        });
+                    }
+                });
+            }
+        });
+
+        but_cancel_move.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
+                dialog.cancel();
+            }
+        });
+
+        dialog.show();
+    }
+
+    public void movenote(int position, String toString) {
+
+        movetext = toString;
+        defaultposition = position;
+        but_move.setVisibility(View.VISIBLE);
+
+        MoveAdapter moveAdapter = new MoveAdapter(MainActivity.this, categoryarray, user, defaultposition);
+        layoutManager = new LinearLayoutManager(MainActivity.this);
+        rec_move.setLayoutManager(layoutManager);
+        rec_move.setHasFixedSize(true);
+        rec_move.setItemAnimator(new DefaultItemAnimator());
+        rec_move.setAdapter(moveAdapter);
+    }
+
+    public void movedialog(final UserData userData, final boolean b)
+    {
+        dialog.setContentView(R.layout.move_layout);
+        Button but_movdel = dialog.findViewById(R.id.but_movdel);
+        Button but_movmov = dialog.findViewById(R.id.but_movmov);
+        ImageView img_move_delete = dialog.findViewById(R.id.img_move_delete);
+
+        but_movdel.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v)
+            {
+            dialog.cancel();
+            deletenote(userData,b);
+            }
+        });
+
+        but_movmov.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
+                dialog.cancel();
+                optiondialog(userData);
+
+            }
+        });
+
+        img_move_delete.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
+                dialog.cancel();
+            }
+        });
+
+        dialog.show();
     }
 }

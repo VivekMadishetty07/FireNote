@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:gravity="center"
+    android:orientation="vertical">
+
+
+    <androidx.cardview.widget.CardView xmlns:card_view="http://schemas.android.com/apk/res-auto"
+        android:layout_width="290dp"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        card_view:cardBackgroundColor="@color/grey"
+        card_view:cardCornerRadius="10dp">
+
+
+        <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+                <ImageView
+                    android:id="@+id/img_move_delete"
+                    android:layout_gravity="end"
+                    android:layout_width="23dp"
+                    android:layout_height="23dp"
+                    android:layout_marginTop="10dp"
+                    android:layout_marginRight="10dp"
+                    android:src="@drawable/cross" />
+
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:orientation="vertical">
+
+                    <ImageView
+                        android:layout_width="50dp"
+                        android:layout_height="50dp"
+                        android:layout_marginTop="20dp"
+                        android:src="@drawable/option" />
+
+
+                    <Button
+                        android:id="@+id/but_movmov"
+                        android:layout_width="match_parent"
+                        android:text="Move"
+                        android:layout_marginTop="20dp"
+                        android:background="@color/greytone"
+                        android:textAllCaps="false"
+                        android:textSize="12dp"
+                        android:fontFamily="@font/light"
+                        android:textColor="@color/white"
+                        android:layout_height="40dp" />
+
+                    <Button
+                        android:id="@+id/but_movdel"
+                        android:background="@color/transgrey"
+                        android:layout_width="match_parent"
+                        android:text="Delete"
+                        android:textAllCaps="false"
+                        android:textSize="12dp"
+                        android:fontFamily="@font/light"
+                        android:textColor="@color/white"
+                        android:layout_height="40dp" />
+
+
+                </LinearLayout>
+
+
+            </FrameLayout>
+
+
+
+        </LinearLayout>
+
+
+    </androidx.cardview.widget.CardView>
+
+</LinearLayout>

@@ -57,7 +57,7 @@ public class HomeAdapter extends RecyclerView.Adapter<HomeAdapter.MyViewHolder>
             holder.card_view_note.setOnLongClickListener(new View.OnLongClickListener() {
                 @Override
                 public boolean onLongClick(View v) {
-                    ((MainActivity)context).deletenote(notesarray.get(position), false);
+                    ((MainActivity)context).movedialog(notesarray.get(position), false);
                     return false;
                 }
             });
